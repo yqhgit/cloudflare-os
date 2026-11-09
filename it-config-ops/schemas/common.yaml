@@ -1,0 +1,34 @@
+# 跨系统共享类型。其它 YAML 用 common.yaml#/schemas/Name 引用。
+schemas:
+  IpAddress:
+    type: string
+    description: 内网 IPv4
+    pattern: '^(?:\\d{1,3}\\.){3}\\d{1,3}$'
+
+  Idc:
+    type: string
+    description: 机房
+    enum: [n1, n2, n3]
+
+  ServerRef:
+    type: object
+    description: 机器身份，IT 与运营分析共用
+    required: [ip]
+    properties:
+      ip:
+        $ref: '#/schemas/IpAddress'
+      hostname:
+        type: string
+        description: 主机名，可能为空
+
+  TimeRange:
+    type: object
+    description: 闭区间时间窗
+    required: [start, end]
+    properties:
+      start:
+        type: string
+        format: date-time
+      end:
+        type: string
+        format: date-time

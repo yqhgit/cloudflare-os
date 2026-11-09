@@ -1,0 +1,105 @@
+system:
+  id: cmdb
+  title: 配置管理
+  domain: it
+  base_env: IT_CMDB_BASE
+  menus:
+    - id: servers
+      title: 机器管理
+    - id: tags
+      title: 标签
+
+components:
+  schemas:
+    Nic:
+      type: object
+      required: [name, addr]
+      properties:
+        name:
+          type: string
+        addr:
+          $ref: common.yaml#/schemas/IpAddress
+        role:
+          type: string
+          enum: [business, management]
+
+    Server:
+      type: object
+      required: [identity]
+      properties:
+        identity:
+          $ref: common.yaml#/schemas/ServerRef
+        idc:
+          $ref: common.yaml#/schemas/Idc
+        nics:
+          type: array
+          items:
+            $ref: '#/components/schemas/Nic'
+        tags:
+          type: array
+          items:
+            type: string
+
+    TagPatch:
+      type: object
+      required: [add]
+      properties:
+        add:
+          type: array
+          items: { type: string }
+        remove:
+          type: array
+          items: { type: string }
+
+operations:
+  - id: get_server
+    menu: servers
+    method: GET
+    path: /api/servers/{ip}
+    description: 按内网 IP 查询机器档案
+    mutation: false
+    params:
+      - name: ip
+        in: path
+        required: true
+        schema:
+          $ref: common.yaml#/schemas/IpAddress
+    response:
+      $ref: '#/components/schemas/Server'
+
+  - id: list_servers
+    menu: servers
+    method: GET
+    path: /api/servers
+    description: 按机房列出机器
+    mutation: false
+    params:
+      - name: idc
+        in: query
+        required: false
+        schema:
+          $ref: common.yaml#/schemas/Idc
+    response:
+      type: array
+      items:
+        $ref: '#/components/schemas/Server'
+
+  - id: patch_server_tags
+    menu: tags
+    method: POST
+    path: /api/servers/{ip}/tags
+    description: 为机器增减标签
+    mutation: true
+    params:
+      - name: ip
+        in: path
+        required: true
+        schema:
+          $ref: common.yaml#/schemas/IpAddress
+      - name: body
+        in: body
+        required: true
+        schema:
+          $ref: '#/components/schemas/TagPatch'
+    response:
+      $ref: '#/components/schemas/Server'

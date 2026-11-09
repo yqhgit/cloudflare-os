@@ -1,0 +1,91 @@
+system:
+  id: ops_bi
+  title: 运营分析
+  domain: ops
+  base_env: IT_OPS_BI_BASE
+  menus:
+    - id: metrics
+      title: 指标
+    - id: alerts
+      title: 告警
+
+components:
+  schemas:
+    MetricPoint:
+      type: object
+      required: [ts, value]
+      properties:
+        ts: { type: string, format: date-time }
+        value: { type: number }
+
+    TimeSeries:
+      type: object
+      required: [server, points]
+      properties:
+        server:
+          $ref: common.yaml#/schemas/ServerRef
+        metric:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricPoint'
+
+    Alert:
+      type: object
+      required: [id, server, level]
+      properties:
+        id: { type: string }
+        server:
+          $ref: common.yaml#/schemas/ServerRef
+        level:
+          type: string
+          enum: [info, warn, critical]
+        message: { type: string }
+
+operations:
+  - id: query_cpu
+    menu: metrics
+    method: GET
+    path: /api/metrics/cpu
+    description: 查询机器 CPU 时序
+    mutation: false
+    params:
+      - name: ip
+        in: query
+        required: true
+        schema:
+          $ref: common.yaml#/schemas/IpAddress
+      - name: start
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+      - name: end
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+    response:
+      $ref: '#/components/schemas/TimeSeries'
+
+  - id: list_alerts
+    menu: alerts
+    method: GET
+    path: /api/alerts
+    description: 按机器列出未恢复告警
+    mutation: false
+    params:
+      - name: ip
+        in: query
+        required: false
+        schema:
+          $ref: common.yaml#/schemas/IpAddress
+      - name: level
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [info, warn, critical]
+    response:
+      type: array
+      items:
+        $ref: '#/components/schemas/Alert'
