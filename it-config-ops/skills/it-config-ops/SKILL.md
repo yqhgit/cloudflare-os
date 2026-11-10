@@ -1,63 +1,52 @@
 ---
 name: it-config-ops
-description: 通过沙箱 Python 调用内网 IT 配置与运营分析系统（CMDB、防火墙、指标、告警）。用户询问机器、配置、变更、防火墙策略、CPU/告警或要跨系统排查时使用。
+description: 通过沙箱 Python 调用运营配置系统与数据分析系统。用户要查或改配置、活动、漏斗、证件附件，或要跨系统完成多步任务时使用。
 ---
 
-# 内网 IT 配置与运营分析
+# 运营配置与数据分析
 
-用 `script/` 下生成模块发请求。认证由平台 iptables 注入 cookie，脚本不要处理凭证。
+认证由各系统网关注入。脚本不要处理 cookie。菜单权限因人而异，不要提前判断有没有某个菜单；接口返回 401/403 就是当前用户没有该菜单或接口权限。
 
-跨系统时：**一个脚本 import 多个模块**，用变量传递 `ServerRef.ip` 等共享字段，不要把中间 JSON 用自然语言转述后再调下一个系统。
+`ops` 是运营配置系统，`ana` 是数据分析系统。一次任务写一段脚本，需要两边的数据就在这段脚本里 import 两个系统的函数。
 
 ## 何时使用
 
-查机器/配置、改防火墙、看 CPU 或告警、跨 IT 与运营分析排查。闲聊不用。
+查询或变更运营配置、查看数据分析、一次任务跨多个业务域或两套系统。闲聊不用。
 
 ## 怎么执行
 
-1. 若用户说的是菜单名（机器管理、策略、指标、告警），先 `from catalog import operations_for_menu` 看属于哪个 `module`。
-2. 打开 `script/<module>.py`（或同名类型），只使用其中存在的函数和参数。
-3. 写一段 Python，`print(json.dumps(结果, ensure_ascii=False, indent=2))`。
-4. 回答只引用这段输出。禁止心算或补全。
-
-## 系统与菜单
-
-| domain | module | 系统 | 菜单 |
-|---|---|---|---|
-| it | `cmdb` | 配置管理 | 机器管理、标签 |
-| it | `firewall` | 防火墙 | 策略 |
-| ops | `ops_bi` | 运营分析 | 指标、告警 |
-
-IT 与运营分析共用 `ServerRef`（`ip` / `hostname`）。从 CMDB 拿到 `identity` 后，把 `ip` 传给防火墙和运营分析。
+1. `from sdk import find`。用业务词搜索，例如 `find("ops", "证件")` 或 `find("ana", "漏斗")`。
+2. 只 import 命中条目的 `module` 和 `id`。调用前可打开对应 `.pyi`，只使用其中存在的函数和参数名。
+3. 命中条目 `fields_unknown` 为真时，先调用函数，再用 `preview` 看真实字段，然后在脚本里过滤。
+4. 签名里的分页参数才是分页。用 `pages(fetch_page, start=1, size=20, max_pages=3)` 或自己循环，并在脚本里 `break`。不要指望客户端把所有页拉完。
+5. 用 `emit` 交出最终结果。回答只引用 `emit` 打印出来的字段。
 
 ## 硬性约束
 
-1. 只通过 `script/` 生成模块发请求（`from cmdb import get_server`）。
-2. 禁止 `urllib` / `requests` / `httpx` 访问未在模块中出现的 URL。
-3. 禁止读取、设置、打印 Cookie、Authorization、以及 `os.environ` 里的密钥。环境变量只应有 `IT_*_BASE`。
-4. 调用前打开对应模块，只使用文件里存在的函数和参数名。
-5. 最终结果必须 `json.dumps(..., ensure_ascii=False, indent=2)` 打印。
-6. 空列表或 404：如实说明，禁止补全样本数据。
-7. 403/401：当前用户没有权限，不要改凭证重试。
-8. docstring 含「写操作」的函数：先列出将提交的参数，等用户确认后再调用。
+1. 只通过生成模块发请求。禁止 `urllib` / `requests` / `httpx` 访问未在模块中出现的 URL。
+2. 禁止读取、设置、打印 Cookie、Authorization，以及 `os.environ` 里的密钥。
+3. 只使用 `find` 结果或 `.pyi` 里存在的函数和参数名。
+4. 空列表或 404：如实说明，禁止补全样本数据。
+5. 403/401：告知当前用户没有权限，不要改凭证重试。
+6. docstring 以「写操作」开头的函数：先 `emit` 将提交的参数（文件只给出路径和大小），等用户确认后再调用。
 
-## 跨系统最小例子
+## 最小例子
 
 ```python
-import json
-from cmdb import get_server
-from firewall import list_rules
-from ops_bi import query_cpu, list_alerts
+from sdk import emit, find, preview
 
-server = get_server(ip="10.0.0.1")
-ip = server["identity"]["ip"]
-result = {
-    "server": server["identity"],
-    "cpu": query_cpu(ip=ip, start="2026-01-01T00:00:00Z", end="2026-01-01T01:00:00Z"),
-    "alerts": list_alerts(ip=ip),
-    "rules": list_rules(device_ip=ip),
-}
-print(json.dumps(result, ensure_ascii=False, indent=2))
+hits = find("ops", "证件")
+emit(hits)
+# 下一行换成 hits 里的 module 与 id，不要自己编函数名。
 ```
 
-不要在本文件中写 host、path 或 cookie。路径只以生成代码为准。
+字段未知时，先取真实结构再过滤：
+
+```python
+from sdk import emit, preview
+
+described = preview(payload)
+emit(described)
+```
+
+不要在本文件中写 host、path 或 cookie。接口路径只以生成代码和 `find` 的结果为准。

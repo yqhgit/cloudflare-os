@@ -1,0 +1,2 @@
+skipped:
+- ops productuom.yaml get /noId/ping: missing operationId

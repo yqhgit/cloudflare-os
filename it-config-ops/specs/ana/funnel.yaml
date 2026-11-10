@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: Analytics Funnel API
+  version: 1.0.0
+servers:
+- url: http://localhost:8080/analytics
+  description: Local development server
+paths:
+  /funnels:
+    get:
+      operationId: listFunnels
+      summary: 查询转化漏斗
+      description: 按活动查看漏斗，响应字段以运行结果为准
+      parameters:
+      - name: campaignId
+        in: query
+        required: true
+        schema:
+          type: string
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+  /funnels/search:
+    post:
+      operationId: searchFunnels
+      summary: 搜索漏斗
+      description: 只读搜索，不是写操作
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - keyword
+              properties:
+                keyword:
+                  type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string

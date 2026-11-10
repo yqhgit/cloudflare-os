@@ -1,1 +1,1 @@
-# PYTHONPATH should point at this directory so `import cmdb` works.
+# PYTHONPATH points at this directory: `import sdk`, `from ops.campaigns import listCampaigns`.
