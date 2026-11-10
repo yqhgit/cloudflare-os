@@ -1,8 +1,14 @@
 """Load OpenAPI 3 operations from specs/<system>/*.yaml.
 
 The generator and find() both use this parser so the call surface and the
-search index cannot drift. External $ref and missing operationId are skipped,
-not guessed.
+search index cannot drift. An overlay allow-list trims that surface: an
+operation with no matching include entry is skipped, and the vendor YAML is
+left unchanged.
+
+$ref is resolved offline, inside the current file only. A local pointer
+(`#/...`) is followed, including through allOf. A cycle, a missing pointer,
+oneOf/anyOf, a remote http(s) URL, or any other external file is not guessed
+and not fetched; the operation is skipped and the reason is recorded.
 """
 
 from __future__ import annotations
@@ -95,12 +101,24 @@ def _unquote(part: str) -> str:
     return part.replace("~1", "/").replace("~0", "~")
 
 
+def _reject_ref(ref: object) -> SpecError:
+    if not isinstance(ref, str) or not ref:
+        return SpecError("empty $ref")
+    lowered = ref.lower()
+    if lowered.startswith(("http://", "https://", "file://", "//")):
+        return SpecError(f"remote $ref is not fetched offline: {ref}")
+    if not ref.startswith("#/"):
+        return SpecError(f"external $ref is not resolved: {ref}")
+    return SpecError(f"unresolved $ref: {ref}")
+
+
 def _resolve(doc: dict[str, Any], node: Any, seen: tuple[str, ...] = ()) -> Any:
+    """Follow one local JSON pointer. Sibling keys beside $ref are ignored."""
     if not isinstance(node, dict) or "$ref" not in node:
         return node
     ref = node["$ref"]
     if not isinstance(ref, str) or not ref.startswith("#/"):
-        raise SpecError(f"external $ref is not resolved: {ref}")
+        raise _reject_ref(ref)
     if ref in seen:
         raise SpecError(f"cyclic $ref: {ref}")
     target: Any = doc
@@ -169,31 +187,29 @@ def _response(doc: dict[str, Any], operation: dict[str, Any]) -> tuple[str, bool
     content = (payload.get("content") or {}).get("application/json") or {}
     if "schema" not in content:
         return "dict", True, ()
-    try:
-        schema = _merge_object(doc, content["schema"])
-    except SpecError:
-        return "Any", True, ()
+    schema = _merge_object(doc, content["schema"])
     kind = schema.get("type")
     if kind == "array":
         items = schema.get("items") or {}
-        try:
-            items = _merge_object(doc, items) if items else {}
-        except SpecError:
-            items = {}
-        fields = _properties(items) if items.get("type") == "object" else ()
+        items = _merge_object(doc, items) if items else {}
+        fields = _properties(doc, items) if items.get("type") == "object" else ()
         unknown = items.get("type") == "object" and not fields
         return "list", unknown, fields
     if kind == "object":
-        fields = _properties(schema)
+        fields = _properties(doc, schema)
         return "dict", not fields, fields
     return _py_type(schema), False, ()
 
 
-def _properties(schema: dict[str, Any]) -> tuple[tuple[str, str], ...]:
+def _properties(doc: dict[str, Any], schema: dict[str, Any]) -> tuple[tuple[str, str], ...]:
     props = schema.get("properties") or {}
     if not isinstance(props, dict) or not props:
         return ()
-    return tuple((name, _py_type(value if isinstance(value, dict) else {})) for name, value in props.items())
+    fields: list[tuple[str, str]] = []
+    for name, value in props.items():
+        resolved = _resolve(doc, value)
+        fields.append((name, _py_type(resolved if isinstance(resolved, dict) else {})))
+    return tuple(fields)
 
 
 def _parameter(doc: dict[str, Any], raw: Any) -> Param | None:
@@ -311,6 +327,8 @@ def _ordered(path: str, params: list[Param]) -> tuple[Param, ...]:
 
 
 def load_documents(root: Path | None = None) -> tuple[list[Operation], list[Skip]]:
+    from sdk.overlay import load_overlay
+
     root = root or repo_root()
     specs = root / "specs"
     operations: list[Operation] = []
@@ -319,6 +337,8 @@ def load_documents(root: Path | None = None) -> tuple[list[Operation], list[Skip
         return [], [Skip("", "", "", "", f"missing specs directory: {specs}")]
     for system_dir in sorted(path for path in specs.iterdir() if path.is_dir()):
         system = system_dir.name
+        overlay = load_overlay(root, system)
+        matched: set[int] = set()
         for spec_path in sorted(system_dir.glob("*.yaml")):
             with spec_path.open(encoding="utf-8") as handle:
                 document = yaml.safe_load(handle)
@@ -347,6 +367,14 @@ def load_documents(root: Path | None = None) -> tuple[list[Operation], list[Skip
                     if not _ident(operation_id):
                         skipped.append(Skip(system, spec_path.name, method, str(path), "operationId is not a Python identifier"))
                         continue
+                    if overlay is None:
+                        skipped.append(Skip(system, spec_path.name, method, str(path), "no overlay; nothing is generated"))
+                        continue
+                    hits = overlay.matching(method, str(path), operation_id)
+                    if not hits:
+                        skipped.append(Skip(system, spec_path.name, method, str(path), "excluded by overlay"))
+                        continue
+                    matched.update(hits)
                     try:
                         params = _ordered(str(path), _collect_parameters(document, path_item, operation))
                         return_type, unknown, fields = _response(document, operation)
@@ -369,6 +397,13 @@ def load_documents(root: Path | None = None) -> tuple[list[Operation], list[Skip
                         return_type=return_type,
                         response_fields=fields,
                         source=spec_path.name,
+                    ))
+        if overlay is not None:
+            for index, entry in enumerate(overlay.entries):
+                if index not in matched:
+                    skipped.append(Skip(
+                        system, overlay.source, "", "",
+                        f"overlay include matched nothing: {entry.label()}",
                     ))
     seen: set[tuple[str, str]] = set()
     unique: list[Operation] = []

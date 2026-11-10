@@ -17,7 +17,7 @@ description: 通过沙箱 Python 调用运营配置系统与数据分析系统�
 
 ## 怎么执行
 
-1. `from sdk import find`。用业务词搜索，例如 `find("config", "证件")` 或 `find("analytics", "漏斗")`。
+1. `from sdk import find`。用业务词搜索，例如 `find("config", "证件")` 或 `find("analytics", "漏斗")`。`find` 只返回 overlay 保留下来的接口；原始 YAML 里没被点名的接口没有函数。
 2. 只 import 命中条目的 `module` 和 `id`。调用前可打开对应 `.pyi`，只使用其中存在的函数和参数名。
 3. 命中条目 `fields_unknown` 为真时，先调用函数，再用 `preview` 看真实字段，然后在脚本里过滤。
 4. 签名里的分页参数才是分页。用 `pages(fetch_page, start=1, size=20, max_pages=3)` 或自己循环，并在脚本里 `break`。不要指望客户端把所有页拉完。

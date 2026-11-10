@@ -1,0 +1,6 @@
+overlay: 1
+info:
+  title: 数据分析允许生成的接口
+include:
+  - operationId: listFunnels
+  - operationId: searchFunnels

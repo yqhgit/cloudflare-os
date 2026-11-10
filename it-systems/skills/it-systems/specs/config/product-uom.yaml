@@ -91,6 +91,14 @@ paths:
                     type: string
                   name:
                     type: string
+  /admin/rebuildIndex:
+    post:
+      operationId: rebuildIndex
+      summary: 重建索引
+      description: 原始 YAML 里有这个接口，overlay 未点名，所以不生成存根
+      responses:
+        '200':
+          description: Success
   /labels:
     post:
       operationId: createLabel

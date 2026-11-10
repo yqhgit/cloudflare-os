@@ -27,6 +27,7 @@ from config.cert_file_service import uploadFile  # noqa: E402
 from config.labels import createLabel  # noqa: E402
 from sdk import emit, find, pages, preview  # noqa: E402
 from sdk.preview import TRUNCATION_MARK  # noqa: E402
+from sdk.spec import SpecError, load_documents  # noqa: E402
 
 
 def _generated_sources() -> list[Path]:
@@ -81,6 +82,17 @@ class GeneratorTest(unittest.TestCase):
     def test_search_post_is_not_a_mutation(self) -> None:
         from analytics.funnels import searchFunnels
         self.assertFalse(searchFunnels.__doc__.startswith("写操作。"))
+
+    def test_local_ref_is_inlined(self) -> None:
+        self.assertEqual(getCampaign.__annotations__["id"], "str")
+
+    def test_overlay_drops_unlisted_operation(self) -> None:
+        report = (SKILL / "gen_report.txt").read_text(encoding="utf-8")
+        self.assertIn("/admin/rebuildIndex", report)
+        self.assertIn("excluded by overlay", report)
+        names = " ".join(path.name for path in _generated_sources())
+        self.assertNotIn("admin", names)
+        self.assertEqual(find("config", "重建", SKILL), [])
 
 
 class _Response:
@@ -234,6 +246,142 @@ class SdkTest(unittest.TestCase):
         batches = list(pages(fetch, start=2, size=15, max_pages=3))
         self.assertEqual(seen, [(2, 15), (3, 15), (4, 15)])
         self.assertEqual([batch["page"] for batch in batches], [2, 3, 4])
+
+
+class OverlayAndRefTest(unittest.TestCase):
+    def test_offline_refs_and_overlay(self) -> None:
+        root = Path(tempfile.mkdtemp())
+        spec_dir = root / "specs" / "config"
+        spec_dir.mkdir(parents=True)
+        (spec_dir / "api.yaml").write_text(
+            """
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /items/{id}:
+    get:
+      operationId: getItem
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/ItemId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Item'
+  /items/rebuild:
+    post:
+      operationId: rebuildIndex
+      summary: 重建
+      responses:
+        '200': {description: ok}
+  /remote:
+    get:
+      operationId: remoteCall
+      parameters:
+      - name: q
+        in: query
+        schema:
+          $ref: https://example.com/schema.json#/Q
+      responses:
+        '200': {description: ok}
+  /external:
+    get:
+      operationId: externalCall
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: ./other.yaml#/Thing
+  /cycle:
+    get:
+      operationId: cycleCall
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoopA'
+components:
+  schemas:
+    ItemId: {type: integer}
+    ItemCode: {type: string}
+    Item:
+      type: object
+      properties:
+        code:
+          $ref: '#/components/schemas/ItemCode'
+    LoopA:
+      $ref: '#/components/schemas/LoopB'
+    LoopB:
+      $ref: '#/components/schemas/LoopA'
+""",
+            encoding="utf-8",
+        )
+        overlay_dir = root / "overlays"
+        overlay_dir.mkdir()
+        (overlay_dir / "config.yaml").write_text(
+            """
+overlay: 1
+include:
+  - operationId: getItem
+  - operationId: remoteCall
+  - operationId: externalCall
+  - operationId: cycleCall
+  - operationId: notInSpec
+""",
+            encoding="utf-8",
+        )
+        operations, skipped = load_documents(root)
+        self.assertEqual([item.operation_id for item in operations], ["getItem"])
+        self.assertEqual(operations[0].params[0].py_type, "int")
+        self.assertEqual(operations[0].response_fields, (("code", "str"),))
+        reasons = [item.reason for item in skipped]
+        self.assertIn("excluded by overlay", reasons)
+        self.assertTrue(any(reason.startswith("remote $ref is not fetched offline: https://") for reason in reasons))
+        self.assertTrue(any(reason.startswith("external $ref is not resolved: ./other.yaml") for reason in reasons))
+        self.assertTrue(any(reason.startswith("cyclic $ref:") for reason in reasons))
+        self.assertTrue(any(reason.startswith("overlay include matched nothing: operationId=notInSpec") for reason in reasons))
+
+    def test_missing_overlay_generates_nothing(self) -> None:
+        root = Path(tempfile.mkdtemp())
+        spec_dir = root / "specs" / "config"
+        spec_dir.mkdir(parents=True)
+        (spec_dir / "api.yaml").write_text(
+            """
+openapi: 3.0.3
+info: {title: t, version: "1"}
+paths:
+  /ping:
+    get:
+      operationId: ping
+      responses:
+        '200': {description: ok}
+""",
+            encoding="utf-8",
+        )
+        operations, skipped = load_documents(root)
+        self.assertEqual(operations, [])
+        self.assertIn("no overlay; nothing is generated", skipped[0].reason)
+
+    def test_bad_overlay_fails(self) -> None:
+        root = Path(tempfile.mkdtemp())
+        spec_dir = root / "specs" / "config"
+        spec_dir.mkdir(parents=True)
+        (spec_dir / "api.yaml").write_text("openapi: 3.0.3\ninfo: {title: t, version: '1'}\npaths: {}\n", encoding="utf-8")
+        overlay_dir = root / "overlays"
+        overlay_dir.mkdir()
+        (overlay_dir / "config.yaml").write_text("overlay: 1\ninclude:\n  - method: get\n", encoding="utf-8")
+        with self.assertRaises(SpecError):
+            load_documents(root)
 
 
 if __name__ == "__main__":
