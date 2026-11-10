@@ -62,6 +62,7 @@ class Skip:
 
 
 def repo_root() -> Path:
+    # scripts/sdk/spec.py -> the skill directory, which also holds specs/.
     return Path(__file__).resolve().parents[2]
 
 

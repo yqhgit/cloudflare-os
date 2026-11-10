@@ -5,6 +5,8 @@ description: 通过沙箱 Python 调用运营配置系统与数据分析系统�
 
 # 运营配置与数据分析
 
+可执行代码在本文件旁边的 `scripts/`。沙箱 `PYTHONPATH` 指向这个目录，然后 `from sdk import find`、`from ops.<module> import ...`、`from ana.<module> import ...`。不要把客户端抄进对话，也不要另写一套 HTTP。
+
 认证由各系统网关注入。脚本不要处理 cookie。菜单权限因人而异，不要提前判断有没有某个菜单；接口返回 401/403 就是当前用户没有该菜单或接口权限。
 
 `ops` 是运营配置系统，`ana` 是数据分析系统。一次任务写一段脚本，需要两边的数据就在这段脚本里 import 两个系统的函数。

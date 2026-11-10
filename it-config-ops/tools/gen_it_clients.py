@@ -8,7 +8,8 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "script"))
+SKILL = ROOT / "skills" / "it-config-ops"
+sys.path.insert(0, str(SKILL / "scripts"))
 
 from sdk.spec import Operation, Param, load_documents  # noqa: E402
 
@@ -111,7 +112,8 @@ def _report(skipped: list) -> str:
 
 
 def generate(root: Path | None = None) -> None:
-    root = root or ROOT
+    root = root or SKILL
+    scripts = root / "scripts"
     operations, skipped = load_documents(root)
     by_module: dict[tuple[str, str], list[Operation]] = defaultdict(list)
     for operation in operations:
@@ -120,7 +122,7 @@ def generate(root: Path | None = None) -> None:
     written: set[Path] = set()
     for (system, module), group in sorted(by_module.items()):
         group.sort(key=lambda item: item.operation_id)
-        directory = root / "script" / system
+        directory = scripts / system
         directory.mkdir(parents=True, exist_ok=True)
         py_path = directory / f"{module}.py"
         pyi_path = directory / f"{module}.pyi"
@@ -129,7 +131,7 @@ def generate(root: Path | None = None) -> None:
         written.add(py_path)
         written.add(pyi_path)
 
-    for system_dir in (root / "script").glob("*"):
+    for system_dir in scripts.glob("*"):
         if not system_dir.is_dir() or system_dir.name in {"sdk", "__pycache__"}:
             continue
         for path in system_dir.glob("*"):
@@ -138,7 +140,7 @@ def generate(root: Path | None = None) -> None:
             if path not in written and path.read_text(encoding="utf-8").startswith('"""GENERATED'):
                 path.unlink()
 
-    (root / "script" / "gen_report.txt").write_text(_report(skipped), encoding="utf-8")
+    (scripts / "gen_report.txt").write_text(_report(skipped), encoding="utf-8")
 
 
 def main() -> None:

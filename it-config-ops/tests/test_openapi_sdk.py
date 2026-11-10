@@ -13,7 +13,8 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "script"
+SKILL = ROOT / "skills" / "it-config-ops"
+SCRIPT = SKILL / "scripts"
 
 import sys
 
@@ -39,12 +40,12 @@ def _generated_sources() -> list[Path]:
 class GeneratorTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        gen_it_clients.generate(ROOT)
+        gen_it_clients.generate(SKILL)
 
     def test_byte_stable(self) -> None:
         before = {path: path.read_bytes() for path in _generated_sources()}
         report = (SCRIPT / "gen_report.txt").read_bytes()
-        gen_it_clients.generate(ROOT)
+        gen_it_clients.generate(SKILL)
         after = {path: path.read_bytes() for path in _generated_sources()}
         self.assertEqual(before, after)
         self.assertEqual(report, (SCRIPT / "gen_report.txt").read_bytes())
@@ -187,7 +188,7 @@ class TransportTest(unittest.TestCase):
 
 class SdkTest(unittest.TestCase):
     def test_find_returns_the_upload_operation_only(self) -> None:
-        hits = find("ops", "证件", ROOT)
+        hits = find("ops", "证件", SKILL)
         self.assertEqual([hit["id"] for hit in hits], ["uploadFile"])
         blob = json.dumps(hits, ensure_ascii=False)
         self.assertNotIn("openapi", blob)
