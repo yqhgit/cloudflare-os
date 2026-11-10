@@ -8,7 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "skills" / "it-config-ops"
+SKILL = ROOT / "skills" / "it-systems"
 sys.path.insert(0, str(SKILL / "scripts"))
 
 from sdk.spec import Operation, Param, load_documents  # noqa: E402
@@ -140,7 +140,7 @@ def generate(root: Path | None = None) -> None:
             if path not in written and path.read_text(encoding="utf-8").startswith('"""GENERATED'):
                 path.unlink()
 
-    (scripts / "gen_report.txt").write_text(_report(skipped), encoding="utf-8")
+    (root / "gen_report.txt").write_text(_report(skipped), encoding="utf-8")
 
 
 def main() -> None:

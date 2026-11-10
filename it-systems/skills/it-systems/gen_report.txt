@@ -1,0 +1,2 @@
+skipped:
+- config product-uom.yaml get /noId/ping: missing operationId

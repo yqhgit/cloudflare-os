@@ -23,7 +23,7 @@ def _drop_none(values: dict[str, Any] | None) -> dict[str, Any]:
 def _encode_multipart(
     files: dict[str, str], form: dict[str, Any],
 ) -> tuple[bytes, str]:
-    boundary = "----it-config-ops-boundary"
+    boundary = "----it-systems-boundary"
     chunks: list[bytes] = []
     for name, value in form.items():
         chunks.append(f"--{boundary}\r\n".encode())

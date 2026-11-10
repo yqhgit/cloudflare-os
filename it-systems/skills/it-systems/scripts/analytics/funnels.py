@@ -1,7 +1,7 @@
-"""GENERATED from specs/ana/*.yaml — do not edit. Re-run tools/gen_it_clients.py."""
+"""GENERATED from specs/analytics/*.yaml — do not edit. Re-run tools/gen_it_clients.py."""
 from __future__ import annotations
 
-from ana._http import request
+from analytics._http import request
 
 def listFunnels(*, campaignId: str, page: int | None = None, pageSize: int | None = None) -> dict:
     """查询转化漏斗

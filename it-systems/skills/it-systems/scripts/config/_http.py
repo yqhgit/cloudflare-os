@@ -1,4 +1,4 @@
-"""运营配置系统出站。只读 IT_OPS_BASE，不读取、不发送 Cookie 或 Authorization。"""
+"""运营配置系统出站。只读 IT_CONFIG_BASE，不读取、不发送 Cookie 或 Authorization。"""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from typing import Any
 
 from sdk.transport import request as _request
 
-SYSTEM = "ops"
-BASE_ENV = "IT_OPS_BASE"
+SYSTEM = "config"
+BASE_ENV = "IT_CONFIG_BASE"
 
 
 def request(

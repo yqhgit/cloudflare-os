@@ -1,7 +1,7 @@
-"""GENERATED from specs/ops/*.yaml — do not edit. Re-run tools/gen_it_clients.py."""
+"""GENERATED from specs/config/*.yaml — do not edit. Re-run tools/gen_it_clients.py."""
 from __future__ import annotations
 
-from ops._http import request
+from config._http import request
 
 def uploadFile(*, file: str) -> dict:
     """写操作。

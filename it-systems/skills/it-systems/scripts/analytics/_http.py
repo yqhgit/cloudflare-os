@@ -1,4 +1,4 @@
-"""数据分析系统出站。只读 IT_ANA_BASE，不读取、不发送 Cookie 或 Authorization。"""
+"""数据分析系统出站。只读 IT_ANALYTICS_BASE，不读取、不发送 Cookie 或 Authorization。"""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from typing import Any
 
 from sdk.transport import request as _request
 
-SYSTEM = "ana"
-BASE_ENV = "IT_ANA_BASE"
+SYSTEM = "analytics"
+BASE_ENV = "IT_ANALYTICS_BASE"
 
 
 def request(

@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "skills" / "it-config-ops"
+SKILL = ROOT / "skills" / "it-systems"
 SCRIPT = SKILL / "scripts"
 
 import sys
@@ -22,16 +22,16 @@ sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(SCRIPT))
 
 import gen_it_clients  # noqa: E402
-from ops.campaigns import getCampaign, listCampaigns  # noqa: E402
-from ops.cert_file_service import uploadFile  # noqa: E402
-from ops.labels import createLabel  # noqa: E402
+from config.campaigns import getCampaign, listCampaigns  # noqa: E402
+from config.cert_file_service import uploadFile  # noqa: E402
+from config.labels import createLabel  # noqa: E402
 from sdk import emit, find, pages, preview  # noqa: E402
 from sdk.preview import TRUNCATION_MARK  # noqa: E402
 
 
 def _generated_sources() -> list[Path]:
     paths = []
-    for directory in (SCRIPT / "ops", SCRIPT / "ana"):
+    for directory in (SCRIPT / "config", SCRIPT / "analytics"):
         paths.extend(directory.glob("*.py"))
         paths.extend(directory.glob("*.pyi"))
     return [path for path in paths if path.name not in {"_http.py", "__init__.py"}]
@@ -44,14 +44,14 @@ class GeneratorTest(unittest.TestCase):
 
     def test_byte_stable(self) -> None:
         before = {path: path.read_bytes() for path in _generated_sources()}
-        report = (SCRIPT / "gen_report.txt").read_bytes()
+        report = (SKILL / "gen_report.txt").read_bytes()
         gen_it_clients.generate(SKILL)
         after = {path: path.read_bytes() for path in _generated_sources()}
         self.assertEqual(before, after)
-        self.assertEqual(report, (SCRIPT / "gen_report.txt").read_bytes())
+        self.assertEqual(report, (SKILL / "gen_report.txt").read_bytes())
 
     def test_upload_file_contract(self) -> None:
-        source = (SCRIPT / "ops" / "cert_file_service.py").read_text(encoding="utf-8")
+        source = (SCRIPT / "config" / "cert_file_service.py").read_text(encoding="utf-8")
         self.assertIn('files={"file": file}', source)
         self.assertIn("-> dict", source)
         self.assertTrue(uploadFile.__doc__.startswith("写操作。"))
@@ -61,7 +61,7 @@ class GeneratorTest(unittest.TestCase):
         self.assertNotIn("Authorization", source)
 
     def test_missing_operation_id_is_skipped(self) -> None:
-        report = (SCRIPT / "gen_report.txt").read_text(encoding="utf-8")
+        report = (SKILL / "gen_report.txt").read_text(encoding="utf-8")
         self.assertIn("missing operationId", report)
         self.assertIn("/noId/ping", report)
         names = " ".join(path.name for path in _generated_sources())
@@ -79,7 +79,7 @@ class GeneratorTest(unittest.TestCase):
             self.assertNotIn("localhost", path.read_text(encoding="utf-8"))
 
     def test_search_post_is_not_a_mutation(self) -> None:
-        from ana.funnels import searchFunnels
+        from analytics.funnels import searchFunnels
         self.assertFalse(searchFunnels.__doc__.startswith("写操作。"))
 
 
@@ -100,9 +100,9 @@ class _Response:
 class TransportTest(unittest.TestCase):
     def setUp(self) -> None:
         self.captured: list[urllib.request.Request] = []
-        self.environ = mock.patch.dict(os.environ, {"IT_OPS_BASE": "https://ops.example/productuom"}, clear=False)
+        self.environ = mock.patch.dict(os.environ, {"IT_CONFIG_BASE": "https://config.example/productuom"}, clear=False)
         self.environ.start()
-        os.environ.pop("IT_ANA_BASE", None)
+        os.environ.pop("IT_ANALYTICS_BASE", None)
 
     def tearDown(self) -> None:
         self.environ.stop()
@@ -125,7 +125,7 @@ class TransportTest(unittest.TestCase):
             target.write_bytes(b"png-bytes")
             with mock.patch("sdk.transport.urllib.request.urlopen", self._urlopen()):
                 uploadFile(file=str(target))
-                from ops._http import request
+                from config._http import request
                 request(
                     "POST", "/certFileService/uploadFile", operation="uploadFile",
                     files={"file": str(target)}, headers={"Cookie": "a=b", "X-Route": "east"},
@@ -133,7 +133,7 @@ class TransportTest(unittest.TestCase):
         generated = self.captured[0]
         direct = self.captured[1]
         self.assertTrue(generated.full_url.startswith(
-            "https://ops.example/productuom/certFileService/uploadFile"))
+            "https://config.example/productuom/certFileService/uploadFile"))
         self.assertNotIn("localhost", generated.full_url)
         self.assertFalse(generated.has_header("Cookie"))
         self.assertFalse(direct.has_header("Cookie"))
@@ -165,22 +165,22 @@ class TransportTest(unittest.TestCase):
         self.assertIn("no menu", str(raised.exception))
         self.assertIn("getCampaign", str(raised.exception))
 
-    def test_ops_does_not_use_the_analytics_base(self) -> None:
-        os.environ["IT_ANA_BASE"] = "https://ana.example"
-        os.environ.pop("IT_OPS_BASE")
+    def test_config_does_not_use_the_analytics_base(self) -> None:
+        os.environ["IT_ANALYTICS_BASE"] = "https://analytics.example"
+        os.environ.pop("IT_CONFIG_BASE")
         with self.assertRaises(RuntimeError) as raised:
             getCampaign(id="1")
-        self.assertIn("IT_OPS_BASE", str(raised.exception))
-        self.assertNotIn("ana.example", str(raised.exception))
-        ops_source = (SCRIPT / "ops" / "_http.py").read_text(encoding="utf-8")
-        ana_source = (SCRIPT / "ana" / "_http.py").read_text(encoding="utf-8")
-        self.assertIn("IT_OPS_BASE", ops_source)
-        self.assertNotIn("IT_ANA_BASE", ops_source)
-        self.assertIn("IT_ANA_BASE", ana_source)
-        self.assertNotIn("IT_OPS_BASE", ana_source)
+        self.assertIn("IT_CONFIG_BASE", str(raised.exception))
+        self.assertNotIn("analytics.example", str(raised.exception))
+        config_source = (SCRIPT / "config" / "_http.py").read_text(encoding="utf-8")
+        analytics_source = (SCRIPT / "analytics" / "_http.py").read_text(encoding="utf-8")
+        self.assertIn("IT_CONFIG_BASE", config_source)
+        self.assertNotIn("IT_ANALYTICS_BASE", config_source)
+        self.assertIn("IT_ANALYTICS_BASE", analytics_source)
+        self.assertNotIn("IT_CONFIG_BASE", analytics_source)
 
     def test_absolute_url_is_refused(self) -> None:
-        from ops._http import request
+        from config._http import request
         with self.assertRaises(RuntimeError) as raised:
             request("GET", "https://evil.example/secret", operation="nope")
         self.assertIn("refused", str(raised.exception))
@@ -188,7 +188,7 @@ class TransportTest(unittest.TestCase):
 
 class SdkTest(unittest.TestCase):
     def test_find_returns_the_upload_operation_only(self) -> None:
-        hits = find("ops", "证件", SKILL)
+        hits = find("config", "证件", SKILL)
         self.assertEqual([hit["id"] for hit in hits], ["uploadFile"])
         blob = json.dumps(hits, ensure_ascii=False)
         self.assertNotIn("openapi", blob)
@@ -196,7 +196,7 @@ class SdkTest(unittest.TestCase):
         self.assertNotIn("listCampaigns", blob)
         self.assertTrue(hits[0]["mutation"])
         self.assertTrue(hits[0]["fields_unknown"])
-        self.assertEqual(hits[0]["module"], "ops.cert_file_service")
+        self.assertEqual(hits[0]["module"], "config.cert_file_service")
 
     def test_preview_lists_real_keys(self) -> None:
         described = preview({"id": "c1", "name": "活动", "nested": {"k": 1}}, n=5)
