@@ -92,7 +92,7 @@ class GeneratorTest(unittest.TestCase):
         self.assertIn("excluded by overlay", report)
         names = " ".join(path.name for path in _generated_sources())
         self.assertNotIn("admin", names)
-        self.assertEqual(find("config", "重建", SKILL), [])
+        self.assertEqual(find("重建", root=SKILL), [])
 
 
 class _Response:
@@ -200,8 +200,9 @@ class TransportTest(unittest.TestCase):
 
 class SdkTest(unittest.TestCase):
     def test_find_returns_the_upload_operation_only(self) -> None:
-        hits = find("config", "证件", SKILL)
+        hits = find("证件", root=SKILL)
         self.assertEqual([hit["id"] for hit in hits], ["uploadFile"])
+        self.assertEqual(hits[0]["system"], "config")
         blob = json.dumps(hits, ensure_ascii=False)
         self.assertNotIn("openapi", blob)
         self.assertNotIn("localhost", blob)

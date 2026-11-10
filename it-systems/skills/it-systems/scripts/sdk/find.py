@@ -10,16 +10,18 @@ from sdk.spec import load_documents
 MAX_MATCHES = 20
 
 
-def find(system: str, query: str, root: Path | None = None) -> list[dict[str, Any]]:
-    """Return up to 20 operations whose id, summary, description, path, or tag contains query."""
+def find(query: str, *, root: Path | None = None) -> list[dict[str, Any]]:
+    """Return up to 20 operations whose id, summary, description, path, or tag contains query.
+
+    Search runs across every system directory. The system name is not an input;
+    it stays on the spec, overlay, and client directories, and comes back on each hit.
+    """
     needle = query.casefold().strip()
     if not needle:
         return []
     operations, _skipped = load_documents(root)
     matches = []
     for operation in operations:
-        if operation.system != system:
-            continue
         haystack = "\n".join((
             operation.operation_id,
             operation.summary,
@@ -31,6 +33,7 @@ def find(system: str, query: str, root: Path | None = None) -> list[dict[str, An
             continue
         matches.append({
             "id": operation.operation_id,
+            "system": operation.system,
             "method": operation.method,
             "path": operation.path,
             "module": f"{operation.system}.{operation.module}",

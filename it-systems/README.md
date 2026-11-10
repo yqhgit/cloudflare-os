@@ -2,7 +2,7 @@
 
 运营配置（`config`）和数据分析（`analytics`）的参考实现。Skill 名是 `it-systems`。自带可 import 的脚本：OpenAPI 3 生成的客户端、按系统分开的传输层，以及 `find` / `preview` / `pages` / `emit`。不是 Cloudflare OS 内核的一部分，拷走 `skills/it-systems/` 即可。
 
-认证不在客户端里。沙箱 `PYTHONPATH` 指向 `skills/it-systems/scripts`，并注入 `IT_CONFIG_BASE` 和 `IT_ANALYTICS_BASE`。各系统的 `_http.py` 只读自己的变量，不发送 cookie。菜单权限不预判，401/403 就是没有权限。
+认证不在客户端里。沙箱 `PYTHONPATH` 指向 `skills/it-systems/scripts`，并注入 `IT_CONFIG_BASE` 和 `IT_ANALYTICS_BASE`。各系统的 `_http.py` 只读自己的变量，不发送 cookie。菜单权限不预判，401/403 就是没有权限。`find` 只接收查询词，并扫过每个系统目录。系统名留在 `specs/`、`overlays/` 和 `scripts/` 的目录上，并出现在命中结果里。
 
 ## 布局
 
