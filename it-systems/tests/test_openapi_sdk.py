@@ -53,6 +53,9 @@ class GeneratorTest(unittest.TestCase):
 
     def test_upload_file_contract(self) -> None:
         source = (SCRIPT / "config" / "cert_file_service.py").read_text(encoding="utf-8")
+        evidence = (SCRIPT / "config" / "evidence_file_service.py").read_text(encoding="utf-8")
+        self.assertIn('"/evidenceFileService/uploadFile"', evidence)
+        self.assertIn("def uploadFile(", evidence)
         self.assertIn('files={"file": file}', source)
         self.assertIn("-> dict", source)
         self.assertTrue(uploadFile.__doc__.startswith("写操作。"))

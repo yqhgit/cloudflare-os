@@ -405,14 +405,14 @@ def load_documents(root: Path | None = None) -> tuple[list[Operation], list[Skip
                         system, overlay.source, "", "",
                         f"overlay include matched nothing: {entry.label()}",
                     ))
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, str]] = set()
     unique: list[Operation] = []
     for operation in operations:
-        key = (operation.system, operation.operation_id)
+        key = (operation.system, operation.module, operation.operation_id)
         if key in seen:
             skipped.append(Skip(
                 operation.system, operation.source, operation.method, operation.path,
-                f"duplicate operationId {operation.operation_id}",
+                f"duplicate operationId {operation.operation_id} in module {operation.module}",
             ))
             continue
         seen.add(key)

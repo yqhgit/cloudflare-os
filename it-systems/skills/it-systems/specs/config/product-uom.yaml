@@ -31,6 +31,30 @@ paths:
                 file:
                   type: string
                   format: binary
+  /evidenceFileService/uploadFile:
+    post:
+      operationId: uploadFile
+      summary: 批量改价证明材料上传
+      description: 批量改价证明材料上传
+      tags:
+      - 批量改价证明材料上传服务
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
   /noId/ping:
     get:
       summary: 没有 operationId，生成器必须跳过
