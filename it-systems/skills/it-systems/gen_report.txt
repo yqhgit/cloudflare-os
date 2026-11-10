@@ -1,0 +1,3 @@
+skipped:
+- config product-uom.yaml post /admin/rebuildIndex: excluded by overlay
+- config product-uom.yaml get /noId/ping: missing operationId

@@ -1,0 +1,156 @@
+openapi: 3.0.3
+info:
+  title: VmallProductUOMService API
+  description: High-precision API documentation generated from Java source code
+  version: 1.0.0
+servers:
+- url: http://localhost:8080/productuom
+  description: Local development server
+paths:
+  /certFileService/uploadFile:
+    post:
+      operationId: uploadFile
+      summary: 证件公示附件文件上传
+      description: 证件公示附件文件上传接口
+      tags:
+      - 证件公示附件上传服务,cdnLocalType = 4,不删除未保存文件
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+  /evidenceFileService/uploadFile:
+    post:
+      operationId: uploadFile
+      summary: 批量改价证明材料上传
+      description: 批量改价证明材料上传
+      tags:
+      - 批量改价证明材料上传服务
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+  /noId/ping:
+    get:
+      summary: 没有 operationId，生成器必须跳过
+      responses:
+        '200':
+          description: Success
+  /campaigns:
+    get:
+      operationId: listCampaigns
+      summary: 按页查询活动
+      description: 按状态过滤活动列表
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+      - name: pageSize
+        in: query
+        schema:
+          type: integer
+      - name: status
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  list:
+                    type: array
+                    items:
+                      type: object
+  /campaigns/{id}:
+    get:
+      operationId: getCampaign
+      summary: 按 ID 查活动
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/CampaignId'
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+  /admin/rebuildIndex:
+    post:
+      operationId: rebuildIndex
+      summary: 重建索引
+      description: 原始 YAML 里有这个接口，overlay 未点名，所以不生成存根
+      responses:
+        '200':
+          description: Success
+  /labels:
+    post:
+      operationId: createLabel
+      summary: 创建标签
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              properties:
+                name:
+                  type: string
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+components:
+  schemas:
+    CampaignId:
+      type: string

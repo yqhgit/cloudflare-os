@@ -1,0 +1,8 @@
+overlay: 1
+info:
+  title: 运营配置允许生成的接口
+include:
+  - operationId: uploadFile
+  - operationId: listCampaigns
+  - operationId: getCampaign
+  - operationId: createLabel
